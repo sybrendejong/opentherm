@@ -35,6 +35,9 @@
 #include <elapsedMillis.h>
 #define VERSION 0.4
 
+
+
+
 /* Variables used in interrupts */ 
 elapsedMicros usCnt;    		// used by elapsedmilis example
 volatile int8_t prefBit = 1;   	// used to determine new bit value
@@ -49,13 +52,22 @@ volatile uint8_t _error=0;      // error
 volatile uint32_t _frame=0;     // a frame contains FRAME_LENGTH - 2 bits (start/stop are discarded)
 volatile uint32_t _frameCnt=0;  // frameCnt private
 
+#define T0 300   //spurious pulse
+#define T1 850   //850 = 1 period boundary
+#define T2 1250  //1-1.5 period boundary
+#define T3 1760  //1.5-2 period boundary
+#define T4 2350  //2     period boundary
 
 /* * * * Static functions * * * */
 
 /* Interrupt service routine falling edge */
 static void ICACHE_RAM_ATTR _ISRfe() {
-   usSinceLast = usCnt;		//capture the interval in us
-   usCnt = 0;				//reset ustimer
+   
+   if(usCnt > T0){            //no spurious pulse
+		usSinceLast = usCnt;  //capture the interval in us
+		usCnt = 0;            //reset ustimer
+	}
+				
    
   /*  Fuction table based on interval period and previous bit:
    
@@ -92,19 +104,20 @@ static void ICACHE_RAM_ATTR _ISRfe() {
 	
 	
    if (dataReady == 1) {
-	   if(usSinceLast >=0 && usSinceLast < 850){ //period < 1
+	   
+	   if(usSinceLast >=T0 && usSinceLast < T1){ //period < 1
 		   _error = 1;
 		   dataReady = 0;  //ignore follow on edges until new frame
 		} //period < 1
 	   
-	   if(usSinceLast >=850 && usSinceLast < 1250){ //1 period
+	   if(usSinceLast >= T1 && usSinceLast < T2){ //1 period
 		   tempFrame <<= 1;
 		   tempFrame |= prefBit;
 		   bitCnt++;
 		   if(prefBit) parityOdd = !parityOdd;
 	   } //1 period
 	   
-	   if(usSinceLast >=1250 && usSinceLast < 1760){	  //1.5 period
+	   if(usSinceLast >=T2 && usSinceLast < T3){	  //1.5 period
 			if(prefBit){
 				prefBit 	= 0; // 0 is last bit of 10
 				tempFrame <<= 2; // shift 2 bit
@@ -121,7 +134,7 @@ static void ICACHE_RAM_ATTR _ISRfe() {
 			}  //1.5 period & 0
 	   } //1.5 period
 	   
-	   if(usSinceLast >=1760 && usSinceLast < 2350){ // 2 period
+	   if(usSinceLast >=T3 && usSinceLast < T4){ // 2 period
 			if(prefBit){
 				_error = 3;
 				dataReady = 0;  //ignore follow on edges until new frame
@@ -135,7 +148,7 @@ static void ICACHE_RAM_ATTR _ISRfe() {
 			} //2 period & 0
 	   }// 2 period
 			
-		if(usSinceLast >=2350){ // > 2 period
+		if(usSinceLast >=T4){ // > 2 period
 			_error = 2;
 			dataReady = 0;  //ignore follow on edges until new frame
 		}// > 2 period						 	   

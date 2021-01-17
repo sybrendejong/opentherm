@@ -37,7 +37,7 @@
 //#include "WProgram.h"
 
 #include "stdint.h"
-#define VERSION 0.2               // Version of this library
+#define VERSION 0.4               // Version of this library
 //#define DATA_PIN 0                // Arduino pin where we receive the OT communication. Tied to INT0.
 
 class OpTh {
